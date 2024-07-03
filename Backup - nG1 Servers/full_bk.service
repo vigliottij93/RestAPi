@@ -1,0 +1,8 @@
+[Unit]
+Description= Rsync the NetScout directory to nFS for full recovery
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/backup/full_bk.py
+
+[Install]
+WantedBy=multi-user.target

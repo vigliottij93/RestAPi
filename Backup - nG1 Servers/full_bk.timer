@@ -1,0 +1,10 @@
+[Unit]
+Description="Run full_bk.service" 
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=4hr
+Unit=full_bk.service
+
+[Install]
+WantedBy=multi-user.target
