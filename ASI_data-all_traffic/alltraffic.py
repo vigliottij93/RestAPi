@@ -34,7 +34,42 @@ def xml_file():
 #    xml query tree for production request
     tree = ElementTree.ElementTree()
     root = ElementTree.Element("GenericClientQuery")
-
+    networkobj = ElementTree.SubElement(root, "NetworkObjectData")
+    networkparm = ElementTree.SubElement(networkobj, "NetworkParameter")
+    selectcolumn = ElementTree.SubElement(networkobj, "SelectColumnList")
+    clientColumn = ElementTree.SubElement(selectcolumn, "ClientColumn")
+    clientColumn1 = ElementTree.SubElement(selectcolumn, "ClientColumn")
+    clientColumn2 = ElementTree.SubElement(selectcolumn, "ClientColumn")
+    clientColumn3 = ElementTree.SubElement(selectcolumn, "ClientColumn")
+    clientColumn4 = ElementTree.SubElement(selectcolumn, "ClientColumn")
+    clientColumn5 = ElementTree.SubElement(selectcolumn, "ClientColumn")
+    flowfilter = ElementTree.SubElement(root, "FlowFilterList")
+    flowfil = ElementTree.SubElement(flowfilter, "FlowFilter")
+    filter = ElementTree.SubElement(flowfil, "FilterList")
+    flownet = ElementTree.SubElement(filter, "networkServiceId")
+#    flowint = ElementTree.SubElement(filter, "srcAddress")
+#    flowfil1 = ElementTree.SubElement(flowfilter, "FlowFilter")
+#    filter2 = ElementTree.SubElement(flowfil1, "FilterList")
+#    flownet2 = ElementTree.SubElement(filter2, "networkServiceId")
+#    flowint2 = ElementTree.SubElement(filter2, "destAddress")
+    functionlist = ElementTree.SubElement(root, "FunctionList")
+    timedef = ElementTree.SubElement(root, "TimeDef")
+    starttime = ElementTree.SubElement(timedef, "startTime")
+    endtime = ElementTree.SubElement(timedef, "endTime")
+    resolution = ElementTree.SubElement(timedef, "resolution")
+    duration = ElementTree.SubElement(timedef, "duration")
+#    this puts data in the xml tree for request
+    networkparm.text = 'APPLICATION'
+    clientColumn.text = 'appId'
+    clientColumn1.text = 'octets'
+    clientColumn2.text = 'destPort'
+    clientColumn3.text = 'destAddress'
+    clientColumn4.text = 'srcAddress'
+    clientColumn5.text = 'srcPort'
+    flownet.text = network_id
+#    flowint.text = src_address
+#    flownet2.text = '175852513'
+#    flowint2.text = src_address
     endtime.text = end
     resolution.text = 'NO_RESOLUTION'
     duration.text = 'LAST_1_DAY'
