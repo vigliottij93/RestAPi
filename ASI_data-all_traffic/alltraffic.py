@@ -42,13 +42,15 @@ def xml_file():
     tree.write(xml_file, xml_declaration=True)
 
 def curl_command(user_name, server_ip, server_port, nId):
-    os.system('curl -k -X POST -u'+user_name+':'+nId+' https://'+server_ip+':'+server_port+'/dbonequerydata/query -H "Content-Type:application/xml" -H "Accept:text/csv" -d @alltraffic.xml -o alltraffic.csv')
+#    os.system('curl -k -X POST -u'+user_name+':'+nId+' https://'+server_ip+':'+server_port+'/dbonequerydata/query -H "Content-Type:application/xml" -H "Accept:text/csv" -d @alltraffic.xml -o alltraffic.csv')
+    os.system('curl -k -X POST --cookie "NSSESSIONID='+nId+'" https://'+server_ip+':'+server_port+'/dbonequerydata/query -H "Content-Type:application/xml" -H "Accept:text/csv" -d @alltraffic.xml -o alltraffic.csv')
+
 def nG1_login_data():
     print('Gathering nG1 login data')
     user_name = input('Please enter nG1 user id: ')
     server_ip = input('Please enter nG1 DGM/Standalone ip: ')
     server_port = input('Please enter the server port: ' )
-    nId = getpass('Please enter password: ')
+    nId = getpass('Please enter NTCT Auth Token: ')
     network_id = input('Please enter network id to use: ' )
     return user_name, server_ip, server_port, nId, network_id
 
