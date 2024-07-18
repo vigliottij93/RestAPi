@@ -103,15 +103,12 @@ def nG1_Device_call(user1, nId, server_ip, server_port, uriRESTapiDevice, folder
             confgxml = '/opt/NetScout/rtm/config/configfile.xml' 
             confgxml_l = folder_name+"/"+device_name+"/"+folder_time+'/configfile.xml'
             scp_file_from_remote(device_ip, user1, confgxml, confgxml_l)
-#            os.system("scp "+user1+"@"+device_ip+":/opt/NetScout/rtm/config/configfile.xml "+folder_name+"/"+device_name+"/"+folder_time+"/")
             iptbl = '/etc/sysconfig/iptables'
             iptbl_l = folder_name+"/"+device_name+"/"+folder_time+'/iptables'
             scp_file_from_remote(device_ip, user1, iptbl, iptbl_l)
-#            os.system("scp "+user1+"@"+device_ip+":/etc/sysconfig/iptables "+folder_name+"/"+device_name+"/"+folder_time+"/")
             afm_mode = '/opt/NetScout/rtm/bin/.afm_mode'
             afm_mode_l = folder_name+"/"+device_name+"/"+folder_time+'/.afm_mode'
             scp_file_from_remote(device_ip, user1, afm_mode, afm_mode_l)
-#            os.system("scp "+user1+"@"+device_ip+":/opt/NetScout/rtm/bin/.afm_mode "+folder_name+"/"+device_name+"/"+folder_time+"/")
             # if you  are using PFS mode uncomment lines below
     #        os.makedirs(folder_name+"/"+device_name+"/"+folder_pfs)
     #        os.system("scp "+user1+"@"+device_ip+":/opt/NetScout/rtm/bin/pfs.cfg "+folder_name+"/"+device_name+"/"+folder_time+"/"+folder_pfs+"/")
@@ -123,8 +120,15 @@ def nG1_Device_call(user1, nId, server_ip, server_port, uriRESTapiDevice, folder
                 print("Folder "+folder_name+"/"+device_name+" exists")
             folder_time = datetime.now().strftime("%Y-%m-%d_%I-%M-%S_%p")
             os.makedirs(folder_name+"/"+device_name+"/"+folder_time)
-            os.system("scp "+user2+"@"+device_ip+":/opt/NetScout/rtm/config/configfile.xml "+folder_name+"/"+device_name+"/"+folder_time+"/")
-            os.system("scp "+user2+"@"+device_ip+":/opt/NetScout/rtm/bin/.afm_mode "+folder_name+"/"+device_name+"/"+folder_time+"/")
+            confgxml = '/opt/NetScout/rtm/config/configfile.xml' 
+            confgxml_l = folder_name+"/"+device_name+"/"+folder_time+'/configfile.xml'
+            scp_file_from_remote(device_ip, user1, confgxml, confgxml_l)
+            iptbl = '/etc/sysconfig/iptables'
+            iptbl_l = folder_name+"/"+device_name+"/"+folder_time+'/iptables'
+            scp_file_from_remote(device_ip, user1, iptbl, iptbl_l)
+            afm_mode = '/opt/NetScout/rtm/bin/.afm_mode'
+            afm_mode_l = folder_name+"/"+device_name+"/"+folder_time+'/.afm_mode'
+            scp_file_from_remote(device_ip, user1, afm_mode, afm_mode_l)
             # if you  are using PFS mode uncomment lines below
             os.makedirs(folder_name+"/"+device_name+"/"+folder_pfs)
             os.system("scp "+user2+"@"+device_ip+":/opt/NetScout/rtm/bin/pfs.cfg "+folder_name+"/"+device_name+"/"+folder_time+"/"+folder_pfs+"/")
