@@ -110,8 +110,12 @@ def nG1_Device_call(user1, nId, server_ip, server_port, uriRESTapiDevice, folder
             afm_mode_l = folder_name+"/"+device_name+"/"+folder_time+'/.afm_mode'
             scp_file_from_remote(device_ip, user1, afm_mode, afm_mode_l)
             # if you  are using PFS mode uncomment lines below
-    #        os.makedirs(folder_name+"/"+device_name+"/"+folder_pfs)
-    #        os.system("scp "+user1+"@"+device_ip+":/opt/NetScout/rtm/bin/pfs.cfg "+folder_name+"/"+device_name+"/"+folder_time+"/"+folder_pfs+"/")
+            '''
+            os.makedirs(folder_name+"/"+device_name+"/"+folder_pfs)
+            pfs_f = '/opt/NetScout/rtm/bin/pfs.cfg'
+            pfs_f_l = folder_name+"/"+device_name+"/"+folder_time+'/pfs.cfg
+            scp_file_from_remote(device_ip, user1, pfs_f, pfs_f_l)
+            '''
     '''      
         elif 'vSTREAM' in act_data.find('DeviceType').text:
             if not os.path.exists(folder_name+"/"+device_name):
@@ -131,8 +135,10 @@ def nG1_Device_call(user1, nId, server_ip, server_port, uriRESTapiDevice, folder
             scp_file_from_remote(device_ip, user1, afm_mode, afm_mode_l)
             # if you  are using PFS mode uncomment lines below
             os.makedirs(folder_name+"/"+device_name+"/"+folder_pfs)
-            os.system("scp "+user2+"@"+device_ip+":/opt/NetScout/rtm/bin/pfs.cfg "+folder_name+"/"+device_name+"/"+folder_time+"/"+folder_pfs+"/")
-    '''
+            pfs_f = '/opt/NetScout/rtm/bin/pfs.cfg'
+            pfs_f_l = folder_name+"/"+device_name+"/"+folder_time+'/pfs.cfg
+            scp_file_from_remote(device_ip, user1, pfs_f, pfs_f_l)
+     '''
 #        elif 'vSTREAM Agent' in act_data.find('DeviceType').text:
 #            print('vSTREAM Agents we dont have root access and will not be backup')
 python_ver()
