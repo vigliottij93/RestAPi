@@ -5,7 +5,9 @@
 
 #These classes/modules needed to run script
 import pandas as pd
+import re
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 import json
 import os
 from xml.etree import ElementTree
@@ -16,6 +18,7 @@ import distro
 import csv
 import requests
 from urllib3.exceptions import InsecureRequestWarning
+#import xml.etree.ElementTree as ET
 import xml.etree.ElementTree as ET
 from tqdm import tqdm
 import configparser
@@ -48,9 +51,15 @@ folder = 'restapi'
 folder_time = datetime.now().strftime("%Y-%m-%d_%I-%M-%S_%p")
 output_folder = folder +'/'+ folder_time
 xml_dir = output_folder+'/xml'
-xml_file =xml_dir+'/pkt_drip_ntksvc.xml'
+xml_file =xml_dir+'/pkt_drop_ntksvc.xml'
+server_data = folder+'/server_data'
 log_dir = folder+'/log'
 log_filename = log_dir+'/restapi_vital_drp_pkts.log'
+working_folder = output_folder+'/working'
+results_folder = folder+'/results'
+
+__version__ = '1.2'
+
 
 def new_dir(folder_name):
     path = os.path.join(".", folder_name)
@@ -67,16 +76,15 @@ def create_dirs():
     new_dir(output_folder)
     new_dir(xml_dir)
     new_dir(log_dir)
+    new_dir(working_folder)
+    new_dir(server_data)
+    new_dir(results_folder)
 
 
-def curl_command(nid, server_ip, server_port):
-    os.system(f'curl -k -X POST -u jvigliotti:Bat#cave0524 -k https://{server_ip}:{server_port}/dbonequerydata/query -H "Content-Type:application/xml" -H "Accept:text/json" -d @{xml_file} -o vitalsigns_drp-json.json')
-
-def nG1_call_drops(server_ip, server_port, xml_in_file, xml_output_file):
-    # Suppress the warning
+def nG1_call_drops(name_file, nId, server_ip, server_port, xml_in_file, xml_output_file):
+      # Suppress the warning
     warnings.simplefilter('ignore', InsecureRequestWarning)
-    nid = 'vluxoT80NIg+Rq6rFewiFC/36XvUnnb26K6LK3lcGGw4h+ms/bXXxmbxVrY4g0u/kz8Vyt2fOeBf/QaQjCAeXUhTagCczdSuafHuF+wTojDjtMxO156KXZ1BV8w5FV7N'
-    cookies = {f'NSSESSIONID':'vluxoT80NIg+Rq6rFewiFC/36XvUnnb26K6LK3lcGGw4h+ms/bXXxmbxVrY4g0u/kz8Vyt2fOeBf/QaQjCAeXUhTagCczdSuafHuF+wTojDjtMxO156KXZ1BV8w5FV7N'}
+    cookies = {'NSSESSIONID':'{}'.format(nId)}
     headers = {
         'Content-Type': 'application/xml',
         'Accept': 'text/csv',
@@ -87,30 +95,30 @@ def nG1_call_drops(server_ip, server_port, xml_in_file, xml_output_file):
     if response.status_code == 200:
         with open(xml_output_file, 'wb') as f:
             f.write(response.content)
-        final_output('vitalsigns_drp_pkts.csv')
-        nG1_call_get_devices(server_ip, server_port)
-        add_device_name('filtered_output.csv', server_ip, server_port)
+        final_output(working_folder+'/vitalsigns_drp_pkts.csv')
+        nG1_call_get_devices(nid, server_ip, server_port)
+        add_device_name(nid, name_file, working_folder+'/filtered_output.csv', server_ip, server_port)
         
     else:
         logger.critical(response.text)
 
-def nG1_call_get_devices(server_ip, server_port):
-    cookies = {f'NSSESSIONID':'vluxoT80NIg+Rq6rFewiFC/36XvUnnb26K6LK3lcGGw4h+ms/bXXxmbxVrY4g0u/kz8Vyt2fOeBf/QaQjCAeXUhTagCczdSuafHuF+wTojDjtMxO156KXZ1BV8w5FV7N'}
+def nG1_call_get_devices(nId, server_ip, server_port):
+    cookies = {'NSSESSIONID':'{}'.format(nId)}
     headers = {
         'Content-Type': 'application/json',
     }
     response = requests.get(f'https://{server_ip}:{server_port}/ng1api/ncm/devices/', cookies=cookies, headers=headers, verify=False)
     if response.status_code == 200:
-        with open('device-list.json', 'wb') as f:
+        with open(working_folder+'/device-list.json', 'wb') as f:
             f.write(response.content)
     else:
         logger.critical(response.text)
 
-def add_device_name(i_file, server_ip, server_port):
+def add_device_name(nid, name_file, i_file, server_ip, server_port):
     input_file = i_file  # The input CSV file name
     df = pd.read_csv(input_file)
-    json_file = 'device-list.json'  # The JSON file path containing device configurations
-    output_csv_file = 'ISNG_drops.csv'
+    json_file = working_folder+'/device-list.json'  # The JSON file path containing device configurations
+    output_csv_file = f'{results_folder}/ISNG_drops_{name_file}.csv'
 
     # Dictionary to map IP addresses to device names
     ip_to_device_name = {}
@@ -125,7 +133,7 @@ def add_device_name(i_file, server_ip, server_port):
             logger.warning(f"Device name not found for IP: {ip}")
 
     # Update the CSV with device names and interface names
-    update_csv_with_interface_name(input_file, output_csv_file, server_ip, server_port, ip_to_device_name)
+    update_csv_with_interface_name(input_file, output_csv_file, nid, server_ip, server_port, ip_to_device_name)
 
 
 def get_device_name_from_ip(ip_address, json_file):
@@ -149,24 +157,8 @@ def get_device_name_from_ip(ip_address, json_file):
     except KeyError as e:
         print(f"Error: Missing expected key {e} in JSON data.")
 
-# def nG1_device_interface(device_name, server_ip, server_port):
-#     cookies = {f'NSSESSIONID':'vluxoT80NIg+Rq6rFewiFC/36XvUnnb26K6LK3lcGGw4h+ms/bXXxmbxVrY4g0u/kz8Vyt2fOeBf/QaQjCAeXUhTagCczdSuafHuF+wTojDjtMxO156KXZ1BV8w5FV7N'}
-#     headers = {
-#         'Content-Type': 'application/json',
-#     }
-#     response = requests.get(f'https://{server_ip}:{server_port}/ng1api/ncm/devices/{device_name}/interfaces', cookies=cookies, headers=headers, verify=False)
-#     if response.status_code == 200:
-#         print(device_name)
-#         print(response.text)
-#         with open('device-interface.json', 'w') as f:
-#             f.write(response.text)
-#     else:
-#         logger.critical(response.text)
-
-def nG1_device_interface(device_name, server_ip, server_port):
-    cookies = {
-        'NSSESSIONID': 'vluxoT80NIg+Rq6rFewiFC/36XvUnnb26K6LK3lcGGw4h+ms/bXXxmbxVrY4g0u/kz8Vyt2fOeBf/QaQjCAeXUhTagCczdSuafHuF+wTojDjtMxO156KXZ1BV8w5FV7N'
-    }
+def nG1_device_interface(device_name, nId, server_ip, server_port):
+    cookies = {'NSSESSIONID':'{}'.format(nId)}
     headers = {
         'Content-Type': 'application/json',
     }
@@ -179,7 +171,7 @@ def nG1_device_interface(device_name, server_ip, server_port):
         print(f"Request failed: {e}")
         return None
 
-def update_csv_with_interface_name(csv_file, output_file, server_ip, server_port, ip_to_device_name):
+def update_csv_with_interface_name(csv_file, output_file, nid, server_ip, server_port, ip_to_device_name):
     # Read the CSV file and group rows by ipAddress to minimize the number of API requests.
     device_rows = {}
     with open(csv_file, mode='r') as file:
@@ -198,7 +190,7 @@ def update_csv_with_interface_name(csv_file, output_file, server_ip, server_port
             print(f"No device name found for IP address: {ip_address}. Skipping...")
             continue
 
-        interface_info = nG1_device_interface(device_name, server_ip, server_port)
+        interface_info = nG1_device_interface(device_name, nid, server_ip, server_port)
         if interface_info:
             # Create a dictionary for fast lookups
             interface_dict = {iface['interfaceNumber']: iface['interfaceName'] for iface in interface_info.get('interfaceConfigurations', [])}
@@ -211,12 +203,15 @@ def update_csv_with_interface_name(csv_file, output_file, server_ip, server_port
 
     # Write the updated data back to a new CSV file
     with open(output_file, mode='w', newline='') as file:
-        fieldnames = ['deviceName','ipAddress', 'ifn', 'interfaceName', 'vitalStats_drops']
+        fieldnames = ['deviceName','ipAddress', 'ifn', 'interfaceName', 'drops']
         csv_writer = csv.DictWriter(file, fieldnames=fieldnames)
         csv_writer.writeheader()
         for rows in device_rows.values():
             csv_writer.writerows(rows)
-
+    # write output file xlsx
+    df = pd.read_csv(output_file)
+    excel_file = f'{results_folder}/ISNG_drops_{name_file}.xlsx'
+    df.to_excel(excel_file, index=False, engine='openpyxl')
 #logging function
 class CustomFormatter(logging.Formatter):
 
@@ -256,27 +251,46 @@ def create_logging_function(log_filename):
     logger = logging.getLogger('Restapi Log for Vitalsigns dropped packets')
     logger.setLevel(LOG_LEVEL)
     logger.addHandler(stream)
+    # Set up file logging
+    file_handler = logging.FileHandler(log_filename)
+    file_handler.setLevel(LOG_LEVEL)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)-8s | %(message)s'))
+    logger.addHandler(file_handler)
     return logger
 
-def rest_close(server_ip,server_port):
-    #using curl to close api session
-    logger.info('Closing API session cookie')
-    # Cookie file path
-    cookie_file = 'cookie.txt'
-    # Load cookies from file
-    cookies = {}
-    with open(cookie_file, 'r') as f:
-        for line in f.read().split(';'):
-            if '=' in line:
-                name, value = line.strip().split('=', 1)
-                cookies[name] = value
+def get_user_input():
+    """Function to get user input for server_ip."""
+    server_ip = input("Enter DGM IP or standalone: ")
+    server_port = input("Enter server port: ")
+    nId = input("Enter nG1 Token from user management: ")
+    return server_ip, server_port, nId
 
-    # Perform POST request
-    response = requests.post('https://'+server_ip+':'+server_port+url_close, cookies=cookies, verify=False)
-    # Print response status code and content
-    logger.info('Response Status Code:', response.status_code)
-    logger.info('Completed, removing session cookie')
-    os.system('rm cookie.txt')
+def write_config_file(server_ip, server_port, nId):
+    """Function to write the configuration to a file."""
+    config_content = f"""[settings]
+server_ip = {server_ip}
+server_port = {server_port}
+nId = {nId}
+
+[api_call]
+
+network_service = All locations
+
+[time]
+#this set the days ,hours, months to pull data
+time_f = days
+#this is set for example 1 hour ,1 day or 1 month
+n_days = 7
+"""
+    
+    # Specify the file path
+    output_file_path = server_data+'/.config.yaml'
+
+    # Write the configuration to the file
+    with open(output_file_path, 'w') as file:
+        file.write(config_content)
+
+
 
 def final_output(int_file):
     # Step 1: Read the CSV file into a DataFrame
@@ -285,18 +299,46 @@ def final_output(int_file):
     # Step 2: Filter rows where 'vitalStats_packets' is greater than zero
     filtered_df = df[df['vitalStats_packets'] > 0].copy()
     # Step 3: Rename the column 'vitalStats_packets' to 'vitalStats_drops'
-    filtered_df.rename(columns={'vitalStats_packets': 'vitalStats_drops'}, inplace=True)
+    filtered_df.rename(columns={'vitalStats_packets': 'drops'}, inplace=True)
     # Step 4: Select the desired columns
     # Assuming the column names exactly match those provided in the example
-    selected_columns = ['ipAddress', 'ifn', 'vitalStats_drops']
+    selected_columns = ['ipAddress', 'ifn', 'drops']
     filtered_df = filtered_df[selected_columns]
     # Step 4: Write the filtered and selected DataFrame to a new CSV file
-    output_file = 'filtered_output.csv'  # Change this to your desired output file name
+    output_file = working_folder+'/filtered_output.csv'  # Change this to your desired output file name
     filtered_df.to_csv(output_file, index=False)
     logger.info(f"Filtered data has been written to {output_file}")
 
-def curl_api_open(nId,server_ip,server_port):
-    logger.info('Making API call to nG1 RESTAPI')
+def config_files():
+    # Read configuration from config.ini
+    config = configparser.ConfigParser()
+    config.read(server_data+'/.config.yaml')
+    # server connection details
+    nid = config.get('settings', 'nId')
+    server_ip = config.get('settings', 'server_ip')
+    server_port = config.get('settings', 'server_port')
+    time_f =  config.get('time', 'time_f')
+    n_days =  config.getint('time', 'n_days')
+    ntk_svc = config.get('api_call', 'network_service')
+    return nid , server_ip, server_port, time_f, n_days, ntk_svc 
+
+def sevice_id(xml_string): # Parse the XML string
+    root = ET.fromstring(xml_string)
+    # Find the <id> element
+    id_element = root.find('.//id')
+
+    # Extract and print the text content
+    if id_element is not None:
+        service_id = id_element.text
+        logger.info(f"Service ID: {service_id}")
+    else:
+        logging.info("ID element not found.")
+    return service_id
+
+def nG1_call_service_id(nId , server_ip, server_port, ntk_svc):
+    url_open = f'/ng1api/ncm/services/{ntk_svc}'
+    # Suppress the warning
+    warnings.simplefilter('ignore', InsecureRequestWarning)
     # Request headers
     headers = { 'Content-Type': 'application/xml'
     }
@@ -305,27 +347,53 @@ def curl_api_open(nId,server_ip,server_port):
     cookies = { 'NSSESSIONID': nId
     }
     # Perform POST request
-    response = requests.post('https://'+server_ip+':'+server_port+url_open, headers=headers, cookies=cookies, verify=False)
-    logger.info('Response Status Code:', response.status_code)
-    logger.info('Response Content:', response.text)
-    logger.info('Completed RESTAPI nG1 Call')
-    # Save cookies to file if needed
-    with open('cookie.txt', 'w') as f:
-        for cookie in response.cookies:
-           f.write(str(cookie.name) + '=' + str(cookie.value) + '\n')
+    response = requests.get('https://'+server_ip+':'+server_port+url_open, headers=headers, cookies=cookies, verify=False)
+    if response.status_code == 200:
+        xml_string = response.content
+        service_id = sevice_id(xml_string)
+    else:
+        print(response.text)
+    return service_id
 
-def config_files():
-    # Read configuration from config.ini
-    config = configparser.ConfigParser()
-    config.read('.config.yaml')
-    # server connection details
-    nid = config.get('settings', 'nId')
-    server_ip = config.get('settings', 'server_ip')
-    server_port = config.getint('settings', 'server_port')
-    return nid , server_ip, server_port
-
-def xml_file_creation(output_folder,xml_file1):
+def xml_file_creation(ntk_svc,output_folder,xml_file1,time_f,n_days):
+    #converted  network service to service_id
+    nid , server_ip, server_port, time_f, n_days, ntk_svc = config_files()
+    s_id = nG1_call_service_id(nid , server_ip, server_port, ntk_svc)
     logger.info('Creating network service xml file for extracting dropped packets')
+    # Get the current time
+    current_time = datetime.now()
+
+    # Round down the minute part to the nearest multiple of 5 for both start and end times
+    rounded_minutes = current_time.minute - (current_time.minute % 5)
+    #time delta 
+    if time_f == 'hours':
+        time_delta = timedelta(hours=n_days)
+    elif time_f ==  'days':
+        time_delta = timedelta(days=n_days)
+    elif time_f == 'months':
+        time_delta = relativedelta(months=n_days)
+    # Create new datetime objects with the rounded minutes
+#    rounded_start_time = current_time.replace(minute=rounded_minutes) - timedelta(time_f = n_days) #31 days.
+    rounded_start_time = current_time.replace(minute=rounded_minutes) - time_delta
+    rounded_end_time = current_time.replace(minute=rounded_minutes)
+
+    if time_f == 'months' or time_f == 'days':
+        time_difference = rounded_end_time - rounded_start_time
+        time_days = time_difference.days
+        logger.info(f'Time difference: {time_days} {time_f}')
+        name_file = f'last_{time_days}_days'
+    else:
+        time_difference = rounded_end_time - rounded_start_time
+        time_difference_str = str(time_difference)
+        stripped_time_difference = time_difference_str.split(':')[0].strip()
+        logger.info(f'Time difference: {stripped_time_difference} {time_f}')
+        name_file = f'last_{stripped_time_difference}_hour'
+
+    # Format the start and end times as needed
+    start = rounded_start_time.strftime("%Y-%m-%d_%H:%M:%S")
+    logger.info(f'Start time for getting packets: {start}')
+    end = rounded_end_time.strftime("%Y-%m-%d_%H:%M:%S")
+    logger.info(f'End time for getting packets: {end}')
     xml_file = open(xml_file1,"wb")
 #    xml query tree for production request
     tree = ElementTree.ElementTree()
@@ -338,25 +406,12 @@ def xml_file_creation(output_folder,xml_file1):
     clientColumn2 = ElementTree.SubElement(selectcolumn, "ClientColumn")
     clientColumn3 = ElementTree.SubElement(selectcolumn, "ClientColumn")
     clientColumn4 = ElementTree.SubElement(selectcolumn, "ClientColumn")
-#    clientColumn5 = ElementTree.SubElement(selectcolumn, "ClientColumn")
-#    clientColumn6 = ElementTree.SubElement(selectcolumn, "ClientColumn")
-#    clientColumn7 = ElementTree.SubElement(selectcolumn, "ClientColumn")
     flowfilter = ElementTree.SubElement(root, "FlowFilterList")
     flowfil = ElementTree.SubElement(flowfilter, "FlowFilter")
     filter = ElementTree.SubElement(flowfil, "FilterList")
     flownet = ElementTree.SubElement(filter, "networkServiceId")
     flowint = ElementTree.SubElement(filter, "appId")
-#    filter = ElementTree.SubElement(flowfil, "FilterList")
     functionlist = ElementTree.SubElement(root, "FunctionList")
-#    function = ElementTree.SubElement(functionlist, "Function")
-#    fname =  ElementTree.SubElement(function, "name")
-#    fcolumn = ElementTree.SubElement(function, "column")
-#    fnvalue = ElementTree.SubElement(function, "nValue")
-#    forder = ElementTree.SubElement(function, "order")
-#    fagg = ElementTree.SubElement(function, "aggrregateOther")
-#    function1 = ElementTree.SubElement(functionlist, "Function")
-#    f1name = ElementTree.SubElement(function1, "name")
-#    f1column = ElementTree.SubElement(function1, "column")
     timedef = ElementTree.SubElement(root, "TimeDef")
     starttime = ElementTree.SubElement(timedef, "startTime")
     endtime = ElementTree.SubElement(timedef, "endTime")
@@ -368,30 +423,47 @@ def xml_file_creation(output_folder,xml_file1):
     clientColumn2.text = 'ipAddress'
     clientColumn3.text = 'vitalStatsFlag'
     clientColumn4.text = 'vitalStats_packets'
-#    clientColumn5.text = 'synAck'
-#    clientColumn6.text = 'synRetry'
-#    clientColumn7.text = 'targetTime'
-#    ='All Locations'
-#    inf_num='184549384'
-    flownet.text = '61499420'
+    flownet.text = s_id
     flowint.text = '184549384'
-#    fname.text = "TopN"
-    starttime.text = '2024-8-21_9:40:00'
-#    starttime.text = start_time
-#    endtime.text = end_time
-    endtime.text = '2024-8-21_10:40:00'
+    starttime.text = start
+    endtime.text = end
     resolution.text = 'NO_RESOLUTION'
     tree = ElementTree.ElementTree(root)
     #  testing of the xml file - pretty format
     #print(etree..tostring(root, pretty_print=True))
     # writes Production xml file
     tree.write(xml_file, xml_declaration=True)
+    return name_file
 
 logger = create_logging_function(log_filename)
-nid , server_ip, server_port = config_files() 
+# Run the date command and capture its output
+process = subprocess.Popen(['date'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+stdout, stderr = process.communicate()
+
+# Decode the output from bytes to string and strip any trailing newlines
+date_run = stdout.decode().strip()
+
+logger.info(f' run date of Script :{date_run}')
+logger.info(f"Running script version {__version__}")
 create_dirs()
-xml_file_creation(xml_dir,xml_file)
-#curl_command(nid, server_ip, server_port)
-nG1_call_drops(server_ip, server_port, xml_file, 'vitalsigns_drp_pkts.csv')
-#nG1_device_interface('172.23.246.108', server_ip, server_port)
-logger.info("all Files will be sorted under the following folder: "+output_folder)
+
+if platform.system() =='Windows':
+    p_version = sys.version
+    p_os = platform.platform()
+    logger.info('Script is running on '+p_os+' running python version '+p_version)
+else:
+    p_version = sys.version
+    p_os = distro.name()
+    p_dver = distro.version()
+    logger.info('Script is running on '+p_os+' '+p_dver+' running python version '+p_version)
+#create config.yaml file
+if os.path.isfile(server_data+'/.config.yaml'):
+    logger.info(f"The file config file exists.")
+else:
+    server_ip,server_port, nId = get_user_input()
+    write_config_file(server_ip, server_port, nId)
+
+nid , server_ip, server_port, time_f, n_days, ntk_svc = config_files() 
+name_file = xml_file_creation(ntk_svc, output_folder,xml_file,time_f,n_days)
+nG1_call_drops(name_file, nid, server_ip, server_port, xml_file, working_folder+'/vitalsigns_drp_pkts.csv')
+logger.info("Results for ISNG drops will be under the following folder: "+results_folder)
