@@ -55,10 +55,10 @@ def new_dir(folder_name):
     path = os.path.join(".", folder_name)
     try:
         os.mkdir(path)
-        logger.info(f"Directory '{folder_name}' created.")
+        print(f"Directory '{folder_name}' created.")
 #        logger.info(f"Directory '{folder_name}' created.")
     except FileExistsError:
-        logger.info(f"Directory '{folder_name}' already exists.")
+        print(f"Directory '{folder_name}' already exists.")
        # logger.info(f"Directory '{folder_name}' already exists.")
 
 def create_dirs(folder_n, working_fldr, results_fldr, server_data, log_dir):
@@ -191,10 +191,55 @@ def decrypt_file(file_path):
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
 
+def get_user_input():
+    """Function to get user input for server_ip."""
+    server_ip = input("Enter DGM IP or standalone: ")
+    server_port = input("Enter server port: ")
+    nId = input("Enter nG1 Token from user management: ")
+    return server_ip, server_port, nId
+
+def write_config_file(server_ip, server_port, nId):
+    """Function to write the configuration to a file."""
+    config_content = f"""[server]
+server_ip = {server_ip}
+server_port = {server_port}
+nId = {nId}
+
+[urls]
+#uri for RESTAPI
+uriRESTapiDevice = /ng1api/ncm/asitrafficdiscovery/url
+
+[time]
+#pick below the time frame you want get discovered urls
+
+#duration =  LAST_HOUR
+#duration =  LAST_6_HOURS
+#duration =  LAST_12_HOURS
+#duration =  TODAY
+#duration =  LAST_24_HOURS
+#duration =  YESTERDAY
+#duration =  LAST_7_DAYS
+duration =  LAST_WEEK
+
+[texteditor]
+#specify text editor you like to use to modify config file after encryption nano/vi
+text_edit = nano
+
+"""
+    
+    # Specify the file path
+    output_file_path = server_data+'/.config.ini'
+
+    # Write the configuration to the file
+    with open(output_file_path, 'w') as file:
+        file.write(config_content)
+
+ 
+
 def config_files():
     # Read configuration from config.ini
     config = configparser.ConfigParser()
-    config.read('.config.ini')
+    config.read(server_data+'/.config.ini')
     # server connection details
     nid = config.get('server', 'nId')
     server_ip = config.get('server', 'server_ip')
@@ -395,7 +440,7 @@ def nG1_asi_port_disc(server_ip,server_port,dur_time,working_dir,result_fldr):
 def open_file_in_editor(file_path,text_edit):
     # Open the file in nano editor
     subprocess.run([text_edit, file_path], check=True)
- 
+create_dirs(folder_main, working_dir, result_fldr, server_data, log_dir) 
 logger = create_logging_function(log_filename)
 # Run the date command and capture its output
 process = subprocess.Popen(['date'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -406,8 +451,13 @@ date_run = stdout.decode().strip()
 
 logger.info(f' run date of Script :{date_run}')
 def main():
-    file_to_encrypt = '.config.ini'
-    create_dirs(folder_main, working_dir, result_fldr, server_data, log_dir)
+    #create config.ini file
+    if os.path.isfile(server_data+'/.config.ini'):
+        logger.info(f"The file config file exists.")
+    else:
+        server_ip,server_port, nId = get_user_input()
+        write_config_file(server_ip, server_port, nId)
+    file_to_encrypt = server_data+'/.config.ini'
     # Check if the key file exists; if not, generate it
     if not os.path.exists(server_data+'/encryption_key.key'):
         gen_encrypt_key()  # Generate and save the key
@@ -432,7 +482,7 @@ def main():
             logger.info('Getting  server configuration data')
             # get Server data
             # Decrypt the file
-            file_to_encrypt = '.config.ini'
+            file_to_encrypt = server_data+'/.config.ini'
             decrypt_file(file_to_encrypt)
             logger.info(f'File {file_to_encrypt} has been decrypted and saved with the same name.')
             nid, server_ip, server_port, uriRESTapiDevice, dur_time, text_edit = config_files()
@@ -441,7 +491,7 @@ def main():
             logger.info(f'File {file_to_encrypt} has been encrypted.')
 
         elif choice == '2':
-            file_to_encrypt = '.config.ini'
+            file_to_encrypt = server_data+'/.config.ini'
             decrypt_file(file_to_encrypt)
             logger.info(f'File {file_to_encrypt} has been decrypted and saved with the same name.')
             logger.info('Getting  server configuration data')
@@ -454,7 +504,7 @@ def main():
             nG1_call_url_get(server_ip,server_port,uriRESTapiDevice,dur_time,working_dir)
             rest_close(server_ip,server_port,working_dir)
         elif choice == '3':
-            file_to_encrypt = '.config.ini'
+            file_to_encrypt = server_data+'/.config.ini'
             decrypt_file(file_to_encrypt)
             logger.info(f'File {file_to_encrypt} has been decrypted and saved with the same name.')
             logger.info('Getting  server configuration data')
@@ -468,7 +518,7 @@ def main():
             rest_close(server_ip,server_port,working_dir)
             logger.info(f'Completed nG1 call for DPC application discovery for {dur_time}')
         elif choice == '4':
-            file_to_encrypt = '.config.ini'
+            file_to_encrypt = server_data+'/.config.ini'
             decrypt_file(file_to_encrypt)
             logger.info(f'File {file_to_encrypt} has been decrypted and saved with the same name.')
             logger.info('Getting  server configuration data')
