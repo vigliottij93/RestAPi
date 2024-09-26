@@ -1,4 +1,4 @@
-!/usr/bin/env python3
+#!/usr/bin/env python3
 
 #Script was Writtent by NetScout Premium Servicess
 #Author James Vigliotti for  Steve Leventhal
@@ -23,9 +23,12 @@ def xml_file():
     rounded_minutes = current_time.minute - (current_time.minute % 5)
 
     # Create new datetime objects with the rounded minutes
-    rounded_start_time = current_time.replace(minute=rounded_minutes) - timedelta(hours = 1) #31 days.
-    rounded_end_time = current_time.replace(minute=rounded_minutes)
-
+    if time_v == 'hours':
+        rounded_start_time = current_time.replace(minute=rounded_minutes) - timedelta(hours = number_of) #31 days.
+        rounded_end_time = current_time.replace(minute=rounded_minutes)
+    elif time_v == 'days':
+        rounded_start_time = current_time.replace(minute=rounded_minutes) - timedelta(days = number_of) #31 days.
+        rounded_end_time = current_time.replace(minute=rounded_minutes)
     # Format the start and end times as needed
     start = rounded_start_time.strftime("%Y-%m-%d_%H:%M:%S")
     end = rounded_end_time.strftime("%Y-%m-%d_%H:%M:%S")
@@ -99,7 +102,9 @@ def nG1_login_data():
     me_ip = config.get('settings', 'me_ip')
     me_ifn = config.get('settings', 'me_ifn')
     host_ip = config.get('settings', 'host_ip')
-    return server_ip, server_port, nId, me_ip, me_ifn, host_ip
+    time_v = config.get('time', 'time_v')
+    number_of = config.getint('time', 'Number_of')
+    return server_ip, server_port, nId, me_ip, me_ifn, host_ip, time_v, number_of
 
 def cleanup_csv():
     #Remove unwanted columns for final ouptu
@@ -118,8 +123,7 @@ else:
     p_os = distro.name()
     p_dver = distro.version()
     print('Script was tested on '+p_os+' '+p_dver+' running python version '+p_version)
-server_ip, server_port, nId, me_ip, me_ifn, host_ip = nG1_login_data()
+server_ip, server_port, nId, me_ip, me_ifn, host_ip, time_v, number_of = nG1_login_data()
 xml_file()
 curl_command(server_ip, server_port, nId)
 cleanup_csv()
-
